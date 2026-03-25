@@ -6,20 +6,31 @@ Configuration, environment setup, and operational reference for a Claude Code pr
 
 ## Document Map
 
+**Central document.** `CCLaunch.md` (this file) is the crafted, maintained guide: deployment, environment, authority and token-budget framing, external reference index, shortcuts, hooks, and appendices tied to **current** practice. It is the right place for conclusions that shift with new Claude Code versions, project policy, or operational priorities.
+
+**Technical references (stable research outputs).** The other Markdown files in this corpus are written as **collations or decode logs**. Their structure and emphasis reflect the work they document; they are **not** expected to cross-reference this file. Use the table below as the canonical map. Specific findings inside them may be revised only when the underlying work is redone (re-extraction, re-decode, or major version re-analysis)—not on every edit to `CCLaunch.md`.
+
+| Document | Purpose | Provenance and scope |
+|---|---|---|
+| **`CCLaunch.md`** | Operational and narrative hub: how to run Claude Code safely and efficiently for this project; where to find official docs; architecture summaries that support those decisions. | Authored here; updated for **presentation and present needs**. |
+| **`CPrompts.md`** | **Technical reference (companion to `CInternals.md`):** architecture terminology, **fragment catalog** (conditional load, injection order), token-cost tables, reduction and tweakcc-oriented strategy, session-log-derived tool choices. | **Reviewed and collated** from the external extracted-fragments repository **`claude-code-system-prompts`** (and the binary version pinned at investigation time). Fragment lists and counts are **version-coupled** until re-collated. |
+| **`CInternals.md`** | **Technical reference (companion to `CPrompts.md`):** **binary/runtime internals** — how the assembled system prompt, MEMORY paths, compact prompt, skills, env block, and CLI flags are realized in the shipped **`claude`** build; obfuscated symbol table and reconstruction notes. | Tied to the same shipped build as the fragment work behind `CPrompts.md`, but organized for **assembly-level** and **symbol-level** lookup after upgrades or when debugging mismatches with docs. |
+| **`CDecode.md`** | Shorter **decode/decompile-oriented** pass on the **installed** `claude` native binary (e.g. `strings` / byte-context extraction): tool lists, deferral logic, CLI flags, compact template sketch. | **Parallel track** to `CInternals.md` (installation-focused decode), not a second pass over `claude-code-system-prompts`. Handy for orientation; **`CInternals.md` carries the fuller symbol-level record** where they overlap. |
+
+**Cross-reference convention.** `CCLaunch.md` may cite `CPrompts.md`, `CInternals.md`, or `CDecode.md` for detail. The reverse is **not** required; those files stand alone as archival technical records. **§9** is the hub for **config drift**, **non-authoritative names**, and **how to verify** behavior against Anthropic’s live docs.
+
+**Supporting artifacts:** This map lists **filenames only** (no path prefixes). The same names may appear at the repository root or grouped in one checkout folder depending on how CContext is laid out; only the basename matters for identification.
+
 | File | Role |
 |---|---|
-| `CCLaunch.md` | **This file.** Deployment guide, external reference index, shortcuts seed, appendix |
-| `CPrompts.md` | Technical reference: system architecture, fragment catalog, reduction strategy |
-| `CInternals.md` | Binary internals, symbol tables, disassembly artifacts |
-| `CLAUDE_SAMPLE.md` | Patch document with rationale; apply each section manually |
-| `MEMORY_SAMPLE.md` | MEMORY.md template with bootstrap and lifecycle rules |
-| `settings.json_sample` | Target `~/.claude/settings.json` — apply manually |
-| `limit-python3.sh` | PreToolUse hook: deploy to `.claude/hooks/` |
-| `jsonl_names.py` | Session analysis utility |
-| `ccenv.bash` | Active at `~/.claude/ccenv.bash` — sourced before each Bash tool call |
+| `CLAUDE_SAMPLE.md` | Patch document with rationale; merge into project `CLAUDE.md` manually |
+| `MEMORY_SAMPLE.md` | `MEMORY.md` template: bootstrap and lifecycle patterns |
+| `settings.json_sample` | Target shape for `~/.claude/settings.json` — apply manually |
+| `ccenv.bash` | Shared PATH/venv exports for Bash tool subshells. **Documented** mechanism: set `CLAUDE_ENV_FILE` in `settings.json` → `env` to a path to this script so Claude Code **sources** it before each Bash command ([env-vars](https://code.claude.com/docs/en/env-vars)). **If your client does not actually source it** (only literal `env` key-value injection is visible), duplicate the same setup with a **PreToolUse** hook on `Bash` that sources this file — see §2.3 |
 
-Active files not in CContext: `~/.claude/settings.json`, `~/.claude/ccenv.bash`,
-`~/.alias` (sc/scr/scc), `CLAUDE.md`.
+**Files on disk vs. the map.** The table above is the **maintained** artifact set. Other paths may exist in a checkout (scratch notes, one-off audits, local CSVs). **Presence on disk still shows up in search and file trees** — that is what “mention” means in tooling terms even when prose never names the file. Those files are **not** part of this map unless promoted here; treat them as **local workspace noise** until you explicitly adopt them.
+
+**Active installs, not versioned in this repo:** `~/.claude/settings.json`, `~/.claude/ccenv.bash`, `~/.alias` (this corpus documents only the **`sc`** wrapper), and every **`CLAUDE.md` layer** the runtime loads (see §2.7).
 
 ---
 
@@ -30,6 +41,8 @@ Authoritative online sources cited across this corpus. Prefer these over second-
 | Topic | URL | Use |
 |---|---|---|
 | **Environment variables (Claude Code)** | [code.claude.com/docs/en/env-vars](https://code.claude.com/docs/en/env-vars) | Canonical list of supported `env` keys and semantics; compare to binary-derived notes in `CPrompts.md` / `CInternals.md` |
+| **Settings (Claude Code)** | [code.claude.com/docs/en/settings](https://code.claude.com/docs/en/settings) | `settings.json` schema, precedence, managed config — reconcile local files after upgrades |
+| **CLI reference** | [code.claude.com/docs/en/cli-reference](https://code.claude.com/docs/en/cli-reference) | Flags including `--debug`; use to confirm launch-time behavior |
 | **Interactive mode (keyboard shortcuts)** | [code.claude.com/docs/en/interactive-mode](https://code.claude.com/docs/en/interactive-mode) | Full shortcut tables, multiline input, `/btw`, task list; basis for a one-page reference card |
 | **Compaction (Messages API, beta)** | [platform.claude.com/docs/en/build-with-claude/compaction](https://platform.claude.com/docs/en/build-with-claude/compaction) | Server-side `compact_20260112` strategy; default **trigger** **150,000 input tokens** (configurable, min 50,000) — **not the same mechanism as Claude Code’s in-app autocompact** |
 | **Advanced tool use (platform)** | [anthropic.com/engineering/advanced-tool-use](https://www.anthropic.com/engineering/advanced-tool-use) | Tool Search Tool, programmatic tool calling, `defer_loading`, MCP toolsets — architectural pattern for large tool libraries without front-loading every schema |
@@ -104,9 +117,7 @@ Informal **~5%** “headroom” talk sometimes appears as **100% − 95%** from 
 
 **Changelog / release notes:** No entry in this repository ties the **~95%** doc sentence to a specific Claude Code release. The public **anthropics/claude-code** GitHub repo is primarily examples/plugins, not a versioned runtime changelog; behavior must be confirmed with **`claude --version`**, **`/context`**, and optional `--debug` / telemetry inspection on your machine.
 
-**Applying env to the main Claude Code process:** Any variable the **parent process** has when it execs `claude` is inherited (e.g. `export` in **`~/.zshrc`**, wrapper functions in **`~/.alias`** sourced from zshrc, or `settings.json` → `"env"`). That is sufficient for compaction-related vars **if** you always start CC from that environment. Sessions started without a login shell (some IDE integrations, GUI shortcuts) may **not** see `~/.zshrc` exports — use `settings.json` `"env"` for portability.
-
-**Bash tool vs zsh:** The **Bash tool** runs **non-interactive bash**; it does **not** load `~/.zshrc` / interactive `~/.bashrc`. `CLAUDE_ENV_FILE` (or an equivalent hook pattern documented by Anthropic) remains the supported way to set **PATH, venv, and per-command exports** for tool invocations (§2.3). That is **orthogonal** to zsh-side exports for the main `claude` process.
+**Applying env to the main process vs. Bash tool:** Login-shell exports apply to **`claude` only if** the parent that launches it has them; IDE shortcuts may not. Prefer `settings.json` → `"env"` for portability ([env-vars](https://code.claude.com/docs/en/env-vars), [Settings](https://code.claude.com/docs/en/settings)). The **`env` object applies key-value pairs** to the Claude Code process; it does not, by itself, execute a shell script. For the **Bash tool** (non-interactive bash, no login init), the **published** variable is **`CLAUDE_ENV_FILE`**: upstream documents it as a **script sourced before each Bash command** (same env-vars page). **Verify** sourcing with a probe in §9; if behavior on your build does not match (PATH/venv never updates), use a **PreToolUse** hook on `Bash` to `source` `ccenv.bash` instead of relying on `CLAUDE_ENV_FILE` alone. See §2.3.
 
 System prompt baseline (before conversation): ~8,000–10,000 tokens depending on tools and fragments. See `CPrompts.md §7.4` for the savings table.
 
@@ -142,8 +153,8 @@ Lower priority than project-level `<repo>/.claude/` and managed settings.
 
 | Path | Purpose |
 |---|---|
-| `settings.json` | Main config: model, permissions, env, hooks. Canonical target: `CContext/settings.json_sample` |
-| `ccenv.bash` | Sourced before each Bash tool call; PATH, venv, Python vars. See §2.3 |
+| `settings.json` | Main config: model, permissions, env, hooks. Canonical target: `settings.json_sample` |
+| `ccenv.bash` | Intended to run before each Bash tool call (via `CLAUDE_ENV_FILE` per docs, or via PreToolUse if sourcing is not observed). PATH, venv, Python vars. See §2.3 |
 | `projects/<slug>/` | Session JSONL files. One directory per project (slug = path-derived). Not config |
 | `debug/` | Debug logs when `--debug` is used. Not config |
 
@@ -159,7 +170,7 @@ Exception: deny rules for secrets (`.env`, `~/.ssh`) belong in user-level config
 
 **Location:** `~/.claude/settings.json`
 
-**Canonical target:** `CContext/settings.json_sample`. Apply by replacing the current file. The sample includes inline comments explaining each decision.
+**Canonical target:** `settings.json_sample`. Apply by replacing the current file. The sample includes inline comments explaining each decision.
 
 **Key decisions and their effects:**
 
@@ -170,10 +181,10 @@ Exception: deny rules for secrets (`.env`, `~/.ssh`) belong in user-level config
 | `alwaysThinkingEnabled` | `false` | Extended thinking disabled by default | Significant per-call; save compute |
 | `model` | `"claude-sonnet-4-6"` | Pins model; avoids prompt for selection | 0 tokens; operational |
 | `includeGitInstructions` | `false` | Removes 1558-token git workflow guide | **1558 tokens** |
-| `outputStyle.keepCodingInstructions` | *(see §5.1)* | Controls 700-token coding discipline section | See §5.1 |
+| `outputStyle` / coding discipline | *(see §5.1)* | **Published** knob: `keep-coding-instructions` in custom output-style Markdown frontmatter ([Output styles](https://code.claude.com/docs/en/output-styles)). **Binary-derived:** object form `outputStyle: { "keepCodingInstructions": … }` in `settings.json` (see `CPrompts.md` / `CInternals.md`) — not shown in public settings examples; verify before relying on it | See §5.1 |
 | `env.ENABLE_CLAUDEAI_MCP_SERVERS` | `"false"` | Disables claudeai-mcp plugin | Prevents startup OAuth errors |
-| `env.CLAUDE_ENV_FILE` | path to `ccenv.bash` | Sources env script before each Bash call | Operational |
-| `env.BASH_DEFAULT_TIMEOUT_MS` | `"300000"` | 5-minute ceiling per Bash tool call | Operational safety |
+| `env.CLAUDE_ENV_FILE` | path to `ccenv.bash` | **Per [env-vars](https://code.claude.com/docs/en/env-vars):** script sourced before each Bash command. **If your build does not source it**, use PreToolUse (§2.3) | Operational |
+| `env.BASH_DEFAULT_TIMEOUT_MS` | `"300000"` | **Per [env-vars](https://code.claude.com/docs/en/env-vars):** default timeout for long-running bash commands. Per-call limits may still use **`timeout_ms`** on the Bash tool invocation; **verify** this env var actually changes behavior (§9) | Operational safety |
 
 **Permission model — deny rules:** Block access to sensitive file paths regardless
 of any allow rule. Evaluated first in the permission chain.
@@ -206,7 +217,7 @@ Key decisions on the allow list:
 - **`Edit`, `Write` retained** — require explicit allow to suppress
   per-invocation confirmation dialogs in default mode
 
-Full allow list: `CContext/settings.json_sample §allow`.
+Full allow list: `settings.json_sample §allow`.
 
 ### 2.3 `CLAUDE_ENV_FILE` — Per-Bash-call Environment
 
@@ -215,8 +226,9 @@ Full allow list: `CContext/settings.json_sample §allow`.
 **Why it exists:** CC runs each Bash tool call in a non-interactive bash
 subshell. Standard shell init files (`.bashrc`) are not sourced in
 non-interactive mode. `pyenv` shims and virtual environments therefore do not
-appear on PATH automatically. `CLAUDE_ENV_FILE` names a script that CC sources
-before each Bash execution.
+appear on PATH automatically. **`CLAUDE_ENV_FILE`** names a script that **Anthropic’s environment-variable reference** describes as **sourced before each Bash command** ([env-vars](https://code.claude.com/docs/en/env-vars)). That same page lists **`BASH_DEFAULT_TIMEOUT_MS`** as the default timeout for long-running bash commands — separate from any **`timeout_ms`** field on an individual Bash tool call.
+
+**Operational caveat:** Some sessions observe only **literal** `env` key-value injection into the CC process and **no** pre-Bash `source` of the file named by `CLAUDE_ENV_FILE`. If `PATH` / venv never reflect `ccenv.bash` inside Bash tool calls, do not assume the variable alone is sufficient: add a **`PreToolUse` hook** on `Bash` that runs `source ~/.claude/ccenv.bash` (or equivalent). Re-check after upgrades.
 
 **Scope limitation:** Environment variable exports only. Aliases defined in
 this script do not take effect because bash parses the command string before
@@ -232,8 +244,7 @@ subshells if `CLAUDE_ENV_FILE` points there — **not** the main CC process unle
 you also use (1) or (2). A PreToolUse hook that runs a script in a **child
 process** cannot inject env into the parent CC process; hooks are for gating or
 side effects, not a replacement for zshrc/`settings.json` inheritance for the app
-itself. For **Bash tool** PATH/venv, `CLAUDE_ENV_FILE` remains appropriate because
-non-interactive bash does not source your usual login files.
+itself. For **Bash tool** PATH/venv, **`CLAUDE_ENV_FILE` is the documented first choice** when sourcing works; otherwise use **PreToolUse** as above — non-interactive bash still does not source your usual login files.
 
 **Current contents** (stripped to essentials):
 
@@ -281,6 +292,10 @@ The model has no awareness of excluded tools. Tool descriptions for excluded
 tools are not injected into the system prompt, saving their token cost.
 `ToolSearch` is always available regardless of `--tools`.
 
+**Limited deployment:** The corpus describes a **full** target (narrow allow list in `settings.json_sample`, optional project hooks). A real machine often adopts it **in pieces** — §3.1.1 explains **partial migration**, **merge**, and **posture** in prose. **`~/.alias`** is documented here with **`sc`** only; your shell may still define other helpers. **`~/.claude/ccenv.bash`** vs login-shell exports: see **§9** (mutability and verification). **What actually merges on one real setup** (Spank + home) is in §3.1.2.
+
+Reconcile any numbers in this file against **`claude --version`**, your **`~/.claude/settings.json`**, and **`/context`** on your machine.
+
 **Why `--tools` whitelist, not `--disallowedTools`:** We use an explicit
 whitelist (`--tools "Bash,Edit,..."`) rather than `--disallowedTools "TodoWrite"`.
 Initial suggestion for `--disallowedTools` assumed it would remove TodoWrite's
@@ -315,15 +330,14 @@ historical from prior cleanup; periodic review of both files is recommended.
 
 **Maintenance burden:** Two locations (～/.claude + repo .claude) means two places
 to review. Per-project config is positive when projects need different hooks or
-MCP. For single-project use, central local (~/.claude only) is simpler and is our current preference; create repo .claude only when limit-python3.sh or
-other project-specific hooks are deployed.
+MCP. For single-project use, central local (~/.claude only) is simpler and is our current preference; create repo `.claude` when the project needs **git-tracked** hooks, MCP, or allow rules that differ from `~/.claude`.
 
 **When repo .claude exists:** Add `.claude/worktrees/` to `.gitignore` if using
 `--worktree`. Add `.claude/settings.local.json` to `.gitignore`.
 
-When deploying hooks (see §7. Pending Applies), the repo may need:
+When deploying hooks (see §8. Pending Applies), the repo may need:
 
-**`<repo>/.claude/settings.json`** — hook registration:
+**`<repo>/.claude/settings.json`** — hook registration (illustrative `PreToolUse` entry; replace the hook path with your own script):
 
 ```json
 {
@@ -332,7 +346,7 @@ When deploying hooks (see §7. Pending Applies), the repo may need:
       "matcher": "Bash",
       "hooks": [{
         "type": "command",
-        "command": "bash .claude/hooks/limit-python3.sh",
+        "command": "bash .claude/hooks/your-hook.sh",
         "timeout": 5
       }]
     }]
@@ -340,10 +354,7 @@ When deploying hooks (see §7. Pending Applies), the repo may need:
 }
 ```
 
-**`<repo>/.claude/hooks/limit-python3.sh`** — deploy from `CContext/limit-python3.sh`.
-Blocks Bash calls that launch `python3` when 3 or more python3 processes are
-already running. Reads tool input from stdin JSON; outputs `{"continue": false}`
-to block. See `TasksKill.md §Hook enforcement` for full design.
+**`<repo>/.claude/hooks/`** — place executable hook scripts here and register them as above. PreToolUse hooks receive tool input on stdin (JSON) and can allow or block the call by printing `{"continue": true}` or `{"continue": false, "stopReason": "…"}`. Use for project-specific ceilings, path blocks, or audit logging as documented in Claude Code’s hooks guide.
 
 **`<repo>/.claude/settings.local.json`** — developer-specific allow overrides
 accumulated via approval dialogs. Should be gitignored.
@@ -391,11 +402,24 @@ Hook types: `command` (shell command), `prompt` (LLM condition evaluation),
 **Location in prompt:** Position 5, with `OVERRIDE` declaration. Higher
 authority than all system prompt fragments. Re-injected after compaction.
 
-**Mechanism:** CC scans the project directory tree for `CLAUDE.md` (and several
-fallback names). Found files are read and injected verbatim. The content is
-prepended with the string "OVERRIDE" to signal authority level to the model.
+**Where CC looks (typical; confirm on your `claude --version`):**
 
-**Proposed replacement:** `CContext/CLAUDE_SAMPLE.md`. Changes from current:
+1. **`~/.claude/CLAUDE.md`** — user-level instructions. Lowest priority among injected project-style instruction files when both user and repo rules exist.
+2. **Walk upward from the current working directory** — nearest **`CLAUDE.md`** (and supported alternate names) on the path to the filesystem root. **Project / repo `CLAUDE.md`** is usually the one in the git root you opened; it **wins** over the user file when both apply. CC’s merge order is “user first, then project” so later content can refine or override earlier.
+3. **Additional directories** — if you use `--add-dir` / multi-root workflows, see official **`CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD`** ([env-vars](https://code.claude.com/docs/en/env-vars)): default is **not** to load `CLAUDE.md` from added dirs unless set to `1`.
+
+**Copies that are *not* auto-loaded (basenames only in this table):**
+
+| File | Role |
+|---|---|
+| `CLAUDE_SAMPLE.md` | Patch notes for editing a real `CLAUDE.md`; CC does not load it unless its content lives under a discovered path from §2.7. |
+| `CLAUDE.md` (template) | May exist as a Cursor-rule seed or sample in a doc repo; CC only loads a file named like this when it is **on the walk-up path from CWD** or under **`~/.claude/`**, not merely because a template exists elsewhere. |
+| Project `CLAUDE.md` | The copy at the **git root of the project you opened** is the usual instruction surface for that repo. |
+| `~/.claude/CLAUDE.md` | Optional user-wide layer; applies together with project files per CC merge rules. |
+
+**Mechanism:** Matched files are read and injected verbatim, with the OVERRIDE preface described in `CInternals.md` / `CPrompts.md`.
+
+**Proposed replacement:** `CLAUDE_SAMPLE.md`. Changes from current:
 - §3 Edit: extended to cover code files via `read-before-modifying` complement
 - §7: adds gtimeout requirement, 3-process ceiling, and stop-on-repeated-failure
   directive
@@ -420,7 +444,7 @@ decisions, and things that haven't yet landed in their authoritative document.
 Not a permanent record — entries are removed when the underlying decision is
 captured elsewhere.
 
-**Template:** `CContext/MEMORY_SAMPLE.md`. Includes a protected bootstrap
+**Template:** `MEMORY_SAMPLE.md`. Includes a protected bootstrap
 section (session orientation order, update triggers, lifecycle rules, stopping
 rule, post-compaction behavior) and the developer preference (no emojis, plain
 text).
@@ -498,24 +522,38 @@ Keys not in `settings.json_sample` may be omitted here deliberately (see §5).
 | `gitAttribution` | bool | CC git attribution in commits |
 | `alwaysThinkingEnabled` | bool | Extended thinking on by default |
 | `includeGitInstructions` | bool | Injects 1558-token git workflow fragment |
-| `outputStyle.keepCodingInstructions` | bool | Injects ~700-token coding discipline section |
-| `outputStyle.name` | string | Named output style (triggers output-style reminder) |
+| `outputStyle` | string **or** object | **Published:** string name (e.g. `"Explanatory"`). **Binary-derived:** object with `keepCodingInstructions` / `name` may affect `codingDisciplineSection()` and reminders (`CPrompts.md`, `CInternals.md`) — **undocumented** in public settings JSON examples; for a **documented** switch use custom output style frontmatter **`keep-coding-instructions`** ([Output styles](https://code.claude.com/docs/en/output-styles)) |
 | `env` | object | Key-value pairs set in CC's process environment at startup |
 | `permissions.allow` | array | Pre-approved tool invocation patterns |
 | `permissions.deny` | array | Blocked tool invocation patterns (evaluated first) |
 | `permissions.defaultMode` | string | `"default"`, `"acceptEdits"`, `"auto"`, `"bypassPermissions"` |
 | `hooks` | object | Hook event registrations (see §2.6) |
 
+### 3.1.1 Partial migration, merge, and posture
+
+**Partial migration** means you adopt **one** part of the target setup (for example project hooks or a `sc` wrapper) **without** replacing the whole **`~/.claude/settings.json`** allow list. That is normal: the sample file is a **target**, not an atomic deploy.
+
+**Merge** is how Claude Code combines scopes. User-level and project-level `settings.json` are **merged**; hooks and `permissions` from both participate. If the home file still carries dozens of `Bash(*:*)` rules and the project file adds **only** `hooks`, the **effective allow set** remains the **home** list unless the project file **also** replaces or tightens `permissions` or adds **`deny`** rules that block patterns the home file granted.
+
+**Posture** is the policy choice behind the list shape. A **wide** home `permissions.allow` trades fewer approval dialogs for higher risk that wildcards pre-approve destructive commands (`git push`, `pip install`, arbitrary `bash -c`). A **tight** list restores dialogs for those prefixes and is what `settings.json_sample` encodes. Relying on **`CLAUDE.md`** alone while the allow list stays wide leaves **binary-level** auto-approval in force for anything the wildcard matches — model instructions are not the same layer.
+
+**Operational takeaway:** “Wide” is the default outcome of interactive “always allow” growth. Tightening is a **deliberate** edit to `permissions.allow`, usually coordinated with `CLAUDE.md` and Bash rules.
+
+### 3.1.2 Observed effective configuration (one developer, Spank + home)
+
+Claude Code **merges** user and project `settings.json`. In the setup reviewed for this paragraph, **`~/.claude/settings.json`** holds **`model`**, feature booleans, **`permissions.allow`** with many broad Bash patterns, **`permissions.deny`** for a few secret paths, and **no** `hooks` block. **`spank-py`** contributes a **project** `settings.json` that contains **only** `hooks`: **`PreToolUse`** on **`Bash`** runs **`~/.claude/ccenv.bash`** so each Bash tool invocation gets pyenv shims, optional `.venv` activation, and shared exports. **Permissions are not narrowed** by that project file — the running allow list is still the **wide** home array. **`sc`** in **`~/.alias`** launches `claude` with an explicit **`--tools`** whitelist; that changes **which tools are registered**, not the string patterns in `permissions.allow` for Bash when Bash is present. **`CLAUDE.md`** loaded for Spank is the file at the **Spank repository root** when CWD is that tree; an optional **`~/.claude/CLAUDE.md`** would still apply per §2.7 if present. **`~/.alias`** and **`ccenv.bash`** may duplicate exports; only names on Anthropic’s [env-vars](https://code.claude.com/docs/en/env-vars) table are authoritative — see **§9**.
+
 **`env` block keys with special meaning to CC:**
 
 | Variable | Effect |
 |---|---|
-| `CLAUDE_ENV_FILE` | Script sourced before each Bash tool call |
-| `BASH_DEFAULT_TIMEOUT_MS` | Default Bash tool timeout in milliseconds |
+| `CLAUDE_ENV_FILE` | **Documented:** script sourced before each Bash command ([env-vars](https://code.claude.com/docs/en/env-vars)). **If not observed:** PreToolUse `source` fallback (§2.3) |
+| `BASH_DEFAULT_TIMEOUT_MS` | **Documented:** default timeout for long-running bash commands ([env-vars](https://code.claude.com/docs/en/env-vars)). Per-call **`timeout_ms`** may still apply; verify effect (§9) |
 | `BASH_MAX_TIMEOUT_MS` | Maximum allowed timeout (per-call override ceiling) |
 | `BASH_MAX_OUTPUT_LENGTH` | Truncate Bash output to N characters |
 | `ENABLE_CLAUDEAI_MCP_SERVERS` | `"false"` disables claudeai-mcp auto-fetch |
 | `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | Compaction threshold (e.g. `"85"`); can only lower |
+| `CLAUDE_CODE_AUTO_COMPACT_WINDOW` | Token denominator for that percentage ([env-vars](https://code.claude.com/docs/en/env-vars)); decouples compaction math from status-line `%` |
 | `CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR` | `"1"` resets CWD after each Bash call |
 
 ### 3.2 CLI Flags — Context and Prompt Related
@@ -564,19 +602,15 @@ misconfiguration risk in accumulated allow lists.
 
 ## 4. Session Analysis
 
-### 4.1 Current Tooling
+### 4.1 Working from JSONL
 
-**`CContext/jsonl_names.py`** — lists session files and counts tool invocations
-across all sessions in a CC project directory.
-
-```bash
-python3 CContext/jsonl_names.py               # project (default)
-python3 CContext/jsonl_names.py --list        # list all known project directories
-python3 CContext/jsonl_names.py <repo>        # match by slug substring
-```
-
-Output: session files sorted by modification time (size, call count, timestamp),
-followed by a tool invocation table sorted by frequency.
+Session transcripts live under `~/.claude/projects/<encoded-path>/` as
+`*.jsonl` (one JSON object per line). Inspect them with shell tools you already
+trust — e.g. `ls -lt` for recency, `wc -c` for size, `jq` for structured
+fields, `rg` for substrings. Tool-invocation counts can be derived by
+filtering lines for the event shapes your Claude Code version emits (see
+`CPrompts.md` for profiling notes). There is no single canonical schema across
+all releases; re-sample one file after each upgrade.
 
 Current project corpus: 23 sessions, 165 MB, 5,279 total tool calls.
 
@@ -602,19 +636,17 @@ actual context consumption per session.
 a discontinuity in conversation history. A PostCompact hook (not yet deployed)
 could log the summary size and session token count at compaction time.
 
-**Permission event audit:** `CContext/permission_audit.md` demonstrates
-extraction of permission-related events from JSONL. The pattern:
-```bash
-jq 'select(.type == "permission") | .decision' session.jsonl | sort | uniq -c
-```
+**Permission-related lines:** If your JSONL includes permission or
+`tool_result` events, filter with `jq` or `rg` for denied or rejected tool
+uses. Exact field names differ by CC version — inspect a fresh file before
+relying on a one-liner.
 
-**Tool frequency drift:** Running `jsonl_names.py` after a batch of new sessions
-reveals tool usage changes — useful for identifying when a new tool warrants
-inclusion in `--tools` or when a currently included tool has dropped to zero calls.
+**Tool frequency drift:** Recompute tool-invocation histograms after a batch of
+new sessions so `--tools` and allow lists stay aligned with actual usage.
 
-**Behavioral pattern extraction:** `CContext/CCMisses.md` demonstrates
-structured analysis of a single session for misinterpretations and instruction-
-following failures. The same approach can be applied to any session.
+**Single-session forensics:** For any session file, structured review (quoted
+evidence, classification, what the developer did next) is a manual pattern;
+keep methodology in whatever working notes you use outside this corpus.
 
 **Session pruning — keep latest N:** No built-in CC command. To retain only
 the 10 most recent sessions per project:
@@ -658,13 +690,15 @@ behavior changes warranting updates to `settings.json_sample` or `CLAUDE_SAMPLE.
 
 ## 5. Options Not Deployed
 
-### 5.1 `outputStyle.keepCodingInstructions` — Option A Chosen
+### 5.1 Coding discipline fragments (`codingDisciplineSection`) — Option A Chosen
 
 **Decision:** Keep all 13 doing-tasks fragments active (Option A).
 
-The setting `outputStyle.keepCodingInstructions: false` suppresses the entire
-`codingDisciplineSection` (~700 tokens, 13 fragments). Four fragments have no
-CLAUDE.md equivalent and correct specific failure modes:
+**Where the knob lives in published docs:** [Output styles](https://code.claude.com/docs/en/output-styles) documents **`keep-coding-instructions`** in the **YAML frontmatter of a custom output style Markdown file** (under `~/.claude/output-styles` or project `.claude/output-styles`), not the top-level `settings.json` schema examples (those show `"outputStyle": "Explanatory"` as a **string** only).
+
+**Binary / extraction path:** The shipped client code paths described in `CPrompts.md` and `CInternals.md` also read an **`outputStyle` object** with a **`keepCodingInstructions`** property; `settings.json_sample` uses that object form for convenience. Treat it as **version-coupled and schema-undocumented** until Anthropic lists it beside other `settings.json` keys — if it has no effect in your build, use the **custom style frontmatter** key above instead.
+
+When suppression works, `keepCodingInstructions === false` (object form) or the equivalent frontmatter choice skips the entire `codingDisciplineSection` (~700 tokens, 13 fragments). Four fragments have no CLAUDE.md equivalent and correct specific failure modes:
 
 | Fragment | System rule | CLAUDE.md complement |
 |---|---|---|
@@ -683,25 +717,11 @@ represent discipline the model applies reliably without instruction
 
 **If token pressure becomes critical:** Implement Option B — add concise
 equivalents of the 4 critical fragments to `CLAUDE.md` (~80 tokens), then
-set `keepCodingInstructions: false` for a net saving of ~620 tokens.
+disable coding-discipline injection via the **documented** custom-style **`keep-coding-instructions`** frontmatter (or the object form in `settings.json` if verified on your build) for a net saving of ~620 tokens.
 
-### 5.2 `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` — documentation vs implementation
+### 5.2 Autocompact — official controls vs. other numbers
 
-**What we can cite**
-
-- **Anthropic’s env-var table** says autocompaction defaults at **approximately 95%** of context capacity and that `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` can use **lower** percentages to compact earlier; values **above** the default threshold have **no effect** ([env-vars](https://code.claude.com/docs/en/env-vars)). It does **not** state whether “95%” is computed from **200K**, a reduced effective window, or the same basis as the `/context` meter.
-- **GitHub [#31806](https://github.com/anthropics/claude-code/issues/31806)** (closed as duplicate, user-supplied deobfuscation) describes `defaultThreshold = effectiveWindow - 13000` and `Math.min(userThreshold, defaultThreshold)` — i.e. a **fixed token margin** and a clamp that prevents raising the threshold **above** that default. If `effectiveWindow` is **200,000**, that is **187,000** tokens (**93.5%**), **not** 150,000. This is **not** an official changelog entry; it is community analysis of minified source and may lag or diverge from your binary.
-- **No release note in this repo** was found that states “as of version X, the live default is 95% of 200K” or ties the public doc sentence to a specific build.
-
-**What we do not know**
-
-- Whether **~95%** in the doc is **rounded** from **187k/200k**, refers to **another denominator** (e.g. status-line `used_percentage`), or is **out of date** relative to current CC.
-- Whether **`/context`’s ~33K buffer** is derived from the same formula as autocompact trigger.
-- Whether **150K** applies anywhere **outside** the **Messages API** compaction beta ([Compaction](https://platform.claude.com/docs/en/build-with-claude/compaction)).
-
-**Operational guidance:** To compact **earlier**, set a **lower** `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` in whatever supplies the **main process** env (`settings.json` `"env"` and/or zsh exports — §1.3). To change **Bash tool** environment only, use `CLAUDE_ENV_FILE` (§2.3). Re-measure with **`/context`** and your workload after upgrades.
-
-Not setting an override is valid when behavior is acceptable; revisit if sessions hit limits unexpectedly.
+**Controls (authoritative):** [Environment variables](https://code.claude.com/docs/en/env-vars) documents **`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`** (lower % → compact earlier; values above the default threshold have no effect) and **`CLAUDE_CODE_AUTO_COMPACT_WINDOW`** (token denominator for that percentage, and decoupling from status-line `%`). **Layered figures** (~95% doc, ~187k/200k from community deobfuscation, `/context` buffer slice, **150k** Messages API default) stay in **§1.3** — do not merge them across rows. Community issue [#31806](https://github.com/anthropics/claude-code/issues/31806) is **not** a release note; trust its **arithmetic**, not its title, and re-check your binary after upgrades. **Dead env names** and **verification** live in **§9**.
 
 ### 5.3 MCP Servers — Disabled
 
@@ -892,7 +912,7 @@ agent uses Sonnet.
 
 **Session memory (`/remember`):** tweakcc 4.0.0 added an experimental
 `/remember` skill and `MEMORY.md` persistence mechanism. The current
-`MEMORY_SAMPLE.md` in CContext already implements the same lifecycle rules
+`MEMORY_SAMPLE.md` already implements the same lifecycle rules
 manually. The tweakcc version would integrate with CC's native session
 persistence — worth evaluating when the feature stabilizes.
 
@@ -900,19 +920,18 @@ persistence — worth evaluating when the feature stabilizes.
 
 ## 7. Further Expansion
 
-**Structured decision log:** Add `CContext/DECISIONS.md` — a compact table of
-all decisions (what, outcome, status: applied/pending/conditional, artifact).
-Currently decisions are embedded in `CPrompts.md §7` which mixes rationale
-with technical reference. A separate decision table makes current state
-immediately readable.
+**Structured decision log:** Add a compact repository-local decision table
+(what, outcome, status: applied/pending/conditional, artifact). Currently
+decisions are embedded in `CPrompts.md §7`, which mixes rationale with
+technical reference; a separate table would surface state faster.
 
-**Cross-version tracking:** When CC updates beyond v2.1.74, run
-`python3 CContext/jsonl_names.py` after a few sessions to detect tool call
-pattern changes. Update `settings.json_sample` allow list if new commands
-appear frequently. Re-evaluate tweakcc targets against updated fragment sizes.
+**Cross-version tracking:** After CC updates beyond the version pinned in
+`CPrompts.md` / `CInternals.md`, re-sample JSONL from a few sessions and
+recompute tool-frequency histograms. Update `settings.json_sample`
+allow list if new commands appear frequently. Re-evaluate tweakcc targets
+against updated fragment sizes.
 
-**Hook expansion:** The limit-python3.sh hook is a starting point. Candidates
-for additional hooks:
+**Hook expansion:** Beyond any hooks you already deploy, candidates:
 
 | Hook event | Purpose |
 |---|---|
@@ -921,15 +940,15 @@ for additional hooks:
 | PostToolUse on Bash | Log command and exit code to a session audit file |
 | SessionStart | Print current token budget and compaction threshold reminder |
 
-**`scr` expansion:** The read-only session wrapper could be extended with
-project-specific analysis preloads — e.g., `--append-system-prompt` that
-references the current `Tasks.csv` state and asks the model to summarize
-outstanding background processes before analysis begins.
+**Read-only session pattern:** A non-wrapper workflow uses `claude` with a
+smaller `--tools` set plus `--append-system-prompt` (analysis-only constraints)
+and optional `--append-system-prompt` that summarizes **project-local**
+long-running work before deep reading begins.
 
-**Automatic session archiving:** A `scs` (session save) function that runs
-`jsonl_names.py` after each session and appends a summary line to a
-`session-log.txt` file. Provides a running record of session sizes and tool
-usage without requiring manual analysis.
+**Automatic session archiving:** A shell wrapper that, after each session,
+appends one summary line (session id, byte size, rough tool counts from `jq`
+or `rg`) to a `session-log.txt`. Provides a running record without opening
+full transcripts each time.
 
 **MEMORY.md automation:** A `PostCompact` hook that automatically updates
 `MEMORY.md` with the compaction timestamp and summary word count. Provides
@@ -939,8 +958,8 @@ summarized.
 **Toolset for documentation sessions:** A tweakcc toolset named `docs` that
 includes only `Read`, `Grep`, `Glob`, `WebSearch`, `WebFetch` — for
 documentation review sessions where no file modification is intended. More
-restrictive than `scr` (which still includes Bash) and removes tool description
-tokens for all editing tools.
+restrictive than a default **`sc`** session (which still includes Bash, Edit,
+Write, etc.) and removes tool description tokens for all editing tools.
 
 ---
 
@@ -948,22 +967,33 @@ tokens for all editing tools.
 
 Manual actions required before the setup is fully deployed:
 
-1. **`~/.claude/settings.json`** — Replace with `CContext/settings.json_sample`.
+1. **`~/.claude/settings.json`** — Replace with `settings.json_sample`.
    Adds `includeGitInstructions`, `env` block, narrows allow list to 23 entries.
 
-2. **`<repo>/CLAUDE.md`** — Apply diff from `CContext/CLAUDE_SAMPLE.md`.
-   Key additions: §7 gtimeout/limit, §8 git/npm/Write advisory, §9 validation
-   scope, §11 HEC data security, §3 documentation read-before-modify.
+2. **Project `CLAUDE.md`** — Apply diff from `CLAUDE_SAMPLE.md`.
+   Key additions (section numbers refer to **that** patch file): §7 gtimeout/limit,
+   §8 git/npm/Write advisory, §9 validation scope, §11 HEC data security, §3
+   read-before-modify.
 
-3. **`<repo>/.claude/hooks/limit-python3.sh`**:
-   ```bash
-   mkdir -p <repo>/.claude/hooks
-   cp CContext/limit-python3.sh <repo>/.claude/hooks/limit-python3.sh
-   chmod +x <repo>/.claude/hooks/limit-python3.sh
-   ```
+3. **`<repo>/.claude/settings.json`** (optional) — If the project uses
+   repo-local hooks or MCP, create this file and register hooks as in §2.5.
+   Otherwise a user-level `~/.claude/settings.json` may suffice.
 
-4. **`<repo>/.claude/settings.json`** — Create with hook registration
-   (content in §2.5 above).
+---
+
+## 9. Mutability, false leads, and verification
+
+### 9.1 Mutability
+
+Defaults, supported `settings.json` keys, and env semantics **change across Claude Code releases**. After every upgrade, re-check [Settings](https://code.claude.com/docs/en/settings), [Environment variables](https://code.claude.com/docs/en/env-vars), and the [CLI reference](https://code.claude.com/docs/en/cli-reference). This repository’s prose is **not** a substitute for those pages.
+
+### 9.2 False leads and stale shapes
+
+Ignore env names **not** listed on [env-vars](https://code.claude.com/docs/en/env-vars) — in particular the pair **`CLAUDE_COMPACT_THRESHOLD`** and **`CLAUDE_COMPACT_THRESHOLD_TOKENS`** (often copy-pasted into shell or `ccenv` scripts; **no documented effect** in the official table). Other common confusions: **`DISABLE_BUG_COMMAND`** (legacy; use **`DISABLE_FEEDBACK_COMMAND`**, [env-vars](https://code.claude.com/docs/en/env-vars)); **`includeGitInstructions`** vs **`CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS`** (when both are set, the **env** wins — avoid contradicting pairs, [env-vars](https://code.claude.com/docs/en/env-vars)); **Messages API** **150k** compaction vs **CLI** autocompact ([Compaction](https://platform.claude.com/docs/en/build-with-claude/compaction) vs [env-vars](https://code.claude.com/docs/en/env-vars)); GitHub **issue titles** vs **quoted code** in [#31806](https://github.com/anthropics/claude-code/issues/31806); **`settings.json` keys** you inherited from an old file but no longer see in [Settings](https://code.claude.com/docs/en/settings) — diff against the doc when upgrading.
+
+### 9.3 Confirming what actually loaded
+
+Use **`claude --version`** first. Then **`claude --debug`** ([CLI reference](https://code.claude.com/docs/en/cli-reference)): short session, capture output to a file, scan for config scope and model — it is **verbose**; turn off after the check. Use **`/context`** after changing `--tools`, `MEMORY.md`, or major settings (§1.3, Appendix). **Probe** `permissions.deny` on a throwaway path if you need proof the rules engine saw your JSON. For **Bash-tool** env, `echo` a variable you define **only** in `ccenv.bash` (not as a flat key under `settings.json` → `env`) inside a tool call — confirms **`CLAUDE_ENV_FILE` sourcing** or your **PreToolUse** `source` ran. Inspect **`~/.claude/debug/`** when `--debug` is on (§2.2). **Habit:** after substantive config or version changes, one **`/context`** snapshot; if static totals move by more than a few hundred tokens, log the date (Appendix pattern).
 
 ---
 
@@ -1050,10 +1080,7 @@ with pointers to this file:
    omits the tool (§2.4).
 
 3. **System prompt fragments (`settings.json`)** — `includeGitInstructions: false`
-   saves the git workflow fragment (§2.2a). `outputStyle.keepCodingInstructions`
-   trades ~700 tokens against losing bundled discipline fragments (§5.1); if
-   pressure is extreme, Option B there (move critical rules into `CLAUDE.md`,
-   then disable) is the documented escape hatch.
+   saves the git workflow fragment (§2.2a). Suppressing **`codingDisciplineSection`** (~700 tokens) is covered in §5.1: **published** path is custom output style **`keep-coding-instructions`**; the sample’s **`outputStyle` object** is binary-derived — verify or prefer frontmatter. Option B there (move critical rules into `CLAUDE.md`, then disable) remains the escape hatch when token pressure is extreme.
 
 4. **MEMORY.md** — Injected when present; subject to line truncation in CC
    (§2.8). Keep it **short and current**; move settled material into canonical
@@ -1073,10 +1100,9 @@ with pointers to this file:
    or build logs bloat the transcript (§5.7). Prefer paginated or filtered
    commands when investigating large output.
 
-8. **Compaction threshold** — `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` (in `settings.json`
-   → `"env"`) compacts **earlier** at **lower** percentages per [env-vars](https://code.claude.com/docs/en/env-vars)
-   (§5.2, §1.3). `CLAUDE_CODE_AUTO_COMPACT_WINDOW` adjusts the token denominator for that
-   percentage. Do **not** confuse with Messages API `compact_20260112` (**150k** default
+8. **Compaction threshold** — `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` and
+   `CLAUDE_CODE_AUTO_COMPACT_WINDOW` per [env-vars](https://code.claude.com/docs/en/env-vars)
+   (§1.3, §5.2, §9). Do **not** confuse with Messages API `compact_20260112` (**150k** default
    trigger, [Compaction](https://platform.claude.com/docs/en/build-with-claude/compaction)).
 
 9. **Subagents (Agent / Task)** — Each subagent has its **own** context (see
@@ -1088,6 +1114,4 @@ with pointers to this file:
     across compaction (§1.2, §2.7). Keep them **dense and referential** (link to
     `Product.md`, `API.md`, etc.) instead of pasting large specifications.
 
-**Re-measurement:** After changing `settings.json`, `MEMORY.md`, `--tools`, or CC
-version, run **`/context`** again and append a new dated row or subsection if
-the static categories shift by more than a few hundred tokens.
+**Re-measurement:** See **§9** (closing paragraphs).

@@ -2,7 +2,7 @@
 
 *Maintained: 2026-03-14. Analysis of the Claude Code prompt system as extracted from the v2.1.74 native binary (`/opt/homebrew/Caskroom/claude-code/2.1.74/claude`), with installation-specific reduction strategy for the Spank project.*
 
-*Cross-references: `CInternals.md` — binary internals and the decompiled runtime assembly function pseudocode. `CCLaunch.md` — **External reference index** (canonical URLs for env vars, interactive shortcuts, API compaction, advanced tool use).
+*Technical reference, **companion to `CInternals.md`**: this file centers on the **extracted fragment catalog**, token costs, and reduction strategy (collated from **`claude-code-system-prompts`**). `CInternals.md` centers on **runtime assembly**, MEMORY paths, CLI flags, and the **obfuscated symbol table** for the same build family. Official env-var names: [code.claude.com/docs/en/env-vars](https://code.claude.com/docs/en/env-vars).*
 
 ---
 
@@ -721,7 +721,7 @@ All reductions are bounded and reversible. tweakcc patches are reverted by reins
 
 ### 7.1 settings.json — Actual Changes Required
 
-All changes are to `~/.claude/settings.json`. The canonical target configuration is `CContext/settings.json_sample`. This section documents the rationale; apply by replacing the current file with the sample contents.
+All changes are to `~/.claude/settings.json`. The canonical target configuration is `settings.json_sample` (basename in the CContext checkout). This section documents the rationale; apply by replacing the current file with the sample contents.
 
 **Background on accumulated allow rules:** The `permissions.allow` entries were added incrementally — each via an "always allow this" response to an approval dialog. They represent commands the model actually ran in past sessions. Removing them restores the approval dialog for those commands. For safe, frequent operations already in CC's built-in safe list (`cd`, `ls`, `echo`, `pwd`, `date`, `whoami`, `wc`, `which`, `sort`, `uniq`), no explicit `allow` entry is needed at all — they are pre-approved at the binary level. For destructive operations (`git push`, `pip install`), restoration of the approval dialog is the point.
 
@@ -755,8 +755,8 @@ All changes are to `~/.claude/settings.json`. The canonical target configuration
 **Add top-level keys:**
 
 - `"includeGitInstructions": false` — removes 1558-token git workflow fragment; CLAUDE.md §8 is more restrictive and project-specific
-- `"outputStyle": { "keepCodingInstructions": false }` — removes ~700-token `codingDisciplineSection` (13 `doing-tasks-*.md` fragments). **Review before applying**: several fragments (`security`, `blocked-approach`, `no-unnecessary-error-handling`, `read-before-modifying`) have no CLAUDE.md equivalent. Disable only if CLAUDE.md explicitly covers these areas.
-- `"env"` block: `ENABLE_CLAUDEAI_MCP_SERVERS`, `CLAUDE_ENV_FILE`, `BASH_DEFAULT_TIMEOUT_MS` (see below)
+- `"outputStyle": { "keepCodingInstructions": false }` — **binary-derived / schema-undocumented** in public `settings.json` examples ([Output styles](https://code.claude.com/docs/en/output-styles) documents **`keep-coding-instructions`** in custom style *frontmatter* instead). When honored by the client, removes ~700-token `codingDisciplineSection` (13 `doing-tasks-*.md` fragments). **Review before applying**: several fragments (`security`, `blocked-approach`, `no-unnecessary-error-handling`, `read-before-modifying`) have no CLAUDE.md equivalent. Disable only if CLAUDE.md explicitly covers these areas.
+- `"env"` block: `ENABLE_CLAUDEAI_MCP_SERVERS`, `CLAUDE_ENV_FILE`, `BASH_DEFAULT_TIMEOUT_MS` (see below — reconcile with [env-vars](https://code.claude.com/docs/en/env-vars) and verify on your build)
 
 **Resulting allow list** — git read-only/staging only; `git fetch` excluded (run manually); non-trivial utilities not in the built-in safe list:
 
@@ -774,10 +774,10 @@ Edit  Write
 | Key | Value | Effect |
 |---|---|---|
 | `ENABLE_CLAUDEAI_MCP_SERVERS` | `"false"` | Disables `claudeai-mcp` plugin; prevents Gmail/Calendar auto-fetch, OAuth failures, and startup errors |
-| `CLAUDE_ENV_FILE` | `"/Users/walter/.claude/ccenv.bash"` | Script sourced before each Bash tool call; handles pyenv PATH, `.venv` activation, `PYTHONDONTWRITEBYTECODE`, `PYTHONUNBUFFERED` |
-| `BASH_DEFAULT_TIMEOUT_MS` | `"300000"` | 5-minute hard ceiling per Bash call; backstop only — python3 child processes survive unless wrapped with `gtimeout --kill-after=5 N python3 ...` |
+| `CLAUDE_ENV_FILE` | `"/Users/walter/.claude/ccenv.bash"` | **[env-vars](https://code.claude.com/docs/en/env-vars):** path to a shell script Claude Code **sources before each Bash command**. Handles pyenv PATH, `.venv` activation, `PYTHONDONTWRITEBYTECODE`, `PYTHONUNBUFFERED` when sourcing occurs. **If your build does not source it**, use a **PreToolUse** hook on `Bash` to `source` this file (`CCLaunch.md` §2.3). |
+| `BASH_DEFAULT_TIMEOUT_MS` | `"300000"` | **[env-vars](https://code.claude.com/docs/en/env-vars):** default timeout for long-running bash commands. **Per-call** `timeout_ms` on Bash tool invocations is a separate lever — verify this env var actually caps duration in your session; python3 child processes can outlive the parent unless wrapped with `gtimeout --kill-after=5 N python3 ...` |
 
-**`CLAUDE_ENV_FILE` scope:** exports only; aliases set in this script do not propagate to Bash tool subshells (non-interactive bash parses the command before sourcing). `settings.json` `env` block is for static key-value pairs that must reach the CC process itself at startup; `ccenv.bash` is for dynamic setup (conditional PATH, venv activation).
+**`CLAUDE_ENV_FILE` scope:** When the file is sourced, **exports only** matter for tool commands; aliases set in this script do not propagate to Bash tool subshells (non-interactive bash parses the command before sourcing). The `settings.json` `env` block sets literal key-value pairs for the CC process at startup; `ccenv.bash` is for dynamic setup (conditional PATH, venv activation) **once the sourcing or hook path runs**.
 
 **CLI invocation for Spank sessions** — confirmed from session log analysis (5,279 total tool calls across 23 sessions):
 
@@ -805,14 +805,9 @@ Tool selection rationale (session log counts):
 
 `Task` in the logs is CC's built-in background task coordination system — not Tasks.csv. They coexist independently; Tasks.csv is updated by the model via Bash/Edit.
 
-**Session wrapper functions** (`~/.alias`):
-- `sc` — standard Spank session: `claude --tools "Bash,Edit,Glob,Grep,Read,WebFetch,WebSearch,Write,Agent,Task"` + pass-through args
-- `scr` — read-only/analysis session: restricted tool set + `--append-system-prompt` constraint
-- `scc` — continue most recent session: `sc --continue`
+**Session wrapper (`~/.alias` or equivalent):** This corpus documents a single function, **`sc`** — standard session: `claude --tools "Bash,Edit,Glob,Grep,Read,WebFetch,WebSearch,Write,Agent,Task"` with pass-through args. Resume with **`sc --continue`** or **`sc --resume`**. Narrower tool sets or `--append-system-prompt` for analysis-only work are **plain `claude` invocations**, not separate named aliases in this documentation.
 
-**Parallel task control** — the model autonomously decides to launch multiple background processes. No single setting controls the count. Enforce via two layers:
-1. CLAUDE.md §7 directive: 3-process ceiling + mandatory `gtimeout --kill-after=5 N python3 ...` wrapping
-2. PreToolUse hook: `CContext/limit-python3.sh` — blocks Bash calls that launch python3 when ≥3 already running. Deploy to `spank-py/.claude/hooks/`; register in `spank-py/.claude/settings.json`. See `spank-py/TasksKill.md §Hook enforcement` for hook JSON registration.
+**Parallel task control** — the model autonomously decides to launch multiple background processes. No single setting controls the count. Enforce via layered policy: (1) **CLAUDE.md** (or equivalent project rules) — explicit process ceiling and mandatory `gtimeout --kill-after=5 N python3 ...` wrapping for long-running commands; (2) optional **PreToolUse** hook under `<repo>/.claude/hooks/` that reads stdin JSON and returns `continue: false` when a ceiling is exceeded — register the hook in `.claude/settings.json` per Claude Code’s hooks documentation.
 
 ### 7.2 tweakcc Targets
 
@@ -1102,7 +1097,7 @@ defaultThreshold = 200,000 − 13,000 = 187,000 tokens = 93.5% of 200K
 
 **Official Claude Code documentation** states autocompact fires at **approximately 95%** capacity by default and that `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` can use **lower** percentages to compact earlier; values **above** the default threshold have **no effect** ([env-vars](https://code.claude.com/docs/en/env-vars)). **GitHub [#31806](https://github.com/anthropics/claude-code/issues/31806)** (closed duplicate; deobfuscated snippet in issue body) claims `defaultThreshold = effectiveWindow - 13000` and a `Math.min` clamp — for **200K** `effectiveWindow` that is **187K** (**93.5%**). The issue **title** says “~83%”; treat the **embedded pseudocode** as the reporter’s claim, not Anthropic’s. **This document does not assert** which figure matches your installed binary without re-verification.
 
-**UI:** `/context` may display a fixed **Autocompact buffer** (e.g. 33K tokens) independent of the above; see `CCLaunch.md` Appendix — Observed.
+**UI:** `/context` may display a fixed **Autocompact buffer** (e.g. 33K tokens) independent of the layers above — confirm in your own session after each upgrade.
 
 **Messages API (different product surface):** Default compaction **trigger** **150,000 input tokens** for `compact_20260112` ([Compaction](https://platform.claude.com/docs/en/build-with-claude/compaction)).
 
@@ -1256,13 +1251,13 @@ cd /Users/walter/Work/Claude/tweakcc && pnpm run detect
 
 - **ToolSearch on-demand description loading.** `tool-description-toolsearch-second-part.md` (202 tks) enables the model to call the ToolSearch tool to retrieve tool descriptions on demand. Critically: if a tool's description is removed via tweakcc, the tool still exists and can be accessed by the model through ToolSearch — the description is fetched at invocation time rather than loaded at session start. This makes it safe to remove infrequently-used tool descriptions without losing access to the tools. The tradeoff: the model does not know the tool exists until it performs a ToolSearch, so discovery must be prompted or anticipated.
 
-- **Model setting and context headroom.** Included because model choice determines the context window ceiling, which is the denominator for all token budget math in §3. `claude-sonnet-4-6` provides 200K tokens — the assumption underlying every calculation in this document. If the model is changed (e.g., to a smaller-window variant), all baseline estimates require revision. The immediate risk is not baseline cost but conversation history accumulation: a session reading 10 files × 500 lines each adds ~50K tokens to history alone. A previous session reached context limits mid-task (CCMisses.md Miss 2). Baseline reduction from §7 extends the buffer before compaction fires but does not reduce the rate at which history grows — it buys more tool operations before the threshold, not an unlimited budget.
+- **Model setting and context headroom.** Included because model choice determines the context window ceiling, which is the denominator for all token budget math in §3. `claude-sonnet-4-6` provides 200K tokens — the assumption underlying every calculation in this document. If the model is changed (e.g., to a smaller-window variant), all baseline estimates require revision. The immediate risk is not baseline cost but conversation history accumulation: a session reading 10 files × 500 lines each adds ~50K tokens to history alone. A previous session reached context limits mid-task under similar read-heavy load. Baseline reduction from §7 extends the buffer before compaction fires but does not reduce the rate at which history grows — it buys more tool operations before the threshold, not an unlimited budget.
 
 - **`companyAnnouncements` injection.** If `companyAnnouncements` is set in any settings scope, the announcement text is injected at session startup alongside the system prompt. The token cost and exact injection point are not documented in any extracted fragment. Included as a gap because it could inflate the baseline without appearing in the §3 catalog — if announcements are configured in a managed or enterprise settings scope, the actual baseline is higher than the §3 estimate.
 
 - **Output style effects.** The `outputStyle` setting controls two independent things:
   1. *Tone variant selection.* Three variants exist: the default (`tone-and-style-concise-output-detailed.md` at 89 tks + `output-efficiency.md` at 177 tks = ~266 tks), a short variant (`tone-and-style-concise-output-short.md` at 16 tks), and a third undocumented variant. Switching to the short variant saves ~250 tokens.
-  2. *`codingDisciplineSection()` suppression.* When `outputStyle.keepCodingInstructions === false`, `codingDisciplineSection()` is skipped. This section assembles approximately 700 tokens from 13 `doing-tasks-*.md` fragments: `no-unnecessary-additions` (78), `avoid-over-engineering` (30), `no-premature-abstractions` (60), `minimize-file-creation` (47), `no-compatibility-hacks` (52), `no-time-estimates` (47), `no-unnecessary-error-handling` (64), `read-before-modifying` (46), `security` (67), `software-engineering-focus` (104), `help-and-feedback` (24), `ambitious-tasks` (47), `blocked-approach` (90). If `keepCodingInstructions` is false, subtract ~700 tokens from the baseline. These fragments are all behavioral — suppressing them removes coding discipline guidance without patching the binary.
+  2. *`codingDisciplineSection()` suppression.* **[Output styles](https://code.claude.com/docs/en/output-styles)** documents **`keep-coding-instructions`** in custom output style *Markdown frontmatter*; the shipped client code collated here also reads **`outputStyle.keepCodingInstructions`** when `outputStyle` is a **JSON object** in `settings.json` — that object shape is **not** in the public settings examples. When `outputStyle.keepCodingInstructions === false` (or the equivalent frontmatter), `codingDisciplineSection()` is skipped. This section assembles approximately 700 tokens from 13 `doing-tasks-*.md` fragments: `no-unnecessary-additions` (78), `avoid-over-engineering` (30), `no-premature-abstractions` (60), `minimize-file-creation` (47), `no-compatibility-hacks` (52), `no-time-estimates` (47), `no-unnecessary-error-handling` (64), `read-before-modifying` (46), `security` (67), `software-engineering-focus` (104), `help-and-feedback` (24), `ambitious-tasks` (47), `blocked-approach` (90). If `keepCodingInstructions` is false, subtract ~700 tokens from the baseline. These fragments are all behavioral — suppressing them removes coding discipline guidance without patching the binary.
 
 - **MCP server tool descriptions and `claudeai-mcp` auto-fetch.** MCP tool descriptions are provided by the MCP server at connection time, not embedded in the binary. Each MCP server sends its own tool schemas with descriptions of arbitrary length. Token cost is entirely server-dependent. Additionally, `mcpInstructionsSection()` (position 8, conditional: `hasMcpServers()`) adds a cached section explaining MCP protocol to the model — size unquantified. **Check whether MCP is configured:**
   ```bash

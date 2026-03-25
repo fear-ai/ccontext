@@ -2,7 +2,7 @@
 
 *Session: 2026-03-14. Discussion of where system, tools, skills, MEMORY, and compact prompts are formed in the Claude Code binary.*
 
-*Canonical URL list for env vars, shortcuts, API compaction:* `CCLaunch.md` → **External reference index**. Published env names: [code.claude.com/docs/en/env-vars](https://code.claude.com/docs/en/env-vars). Appendix **A.3.1** here reconciles binary strings to that table.*
+*Published environment variable names:* [code.claude.com/docs/en/env-vars](https://code.claude.com/docs/en/env-vars). Appendix **A.3.1** here reconciles binary strings to that table.*
 
 ---
 
